@@ -1,0 +1,5 @@
+__pycache__
+old_scripts
+neural_data_utils
+temporal_models/__pycache__
+temporal_models/spoerer_2020/weights
