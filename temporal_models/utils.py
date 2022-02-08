@@ -155,6 +155,6 @@ def load_pretrained_model(model_arch, dataset, input_layer, classes):
         sys.exit()
 
     # load weights into the model
-    model.load_weights('temporal_models/spoerer_2020/weights/' + model_arch + '_' + dataset + '.h5')
+    # model.load_weights('temporal_models/spoerer_2020/weights/' + model_arch + '_' + dataset + '.h5')
 
     return model
