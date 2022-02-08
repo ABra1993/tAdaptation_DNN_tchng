@@ -50,7 +50,7 @@ def load_input_images(input_layer, input_shape, timepts, img_idx):
     # for i in range(1):
 
         # import image
-        raw_img_temp = cv2.imread('visualizations/stimuli/stimulus/' + str(img_idx[i]) + '.png')
+        raw_img_temp = cv2.imread('visualizations/stimuli/' + str(img_idx[i]) + '.png')
         raw_img_temp = cv2.cvtColor(raw_img_temp, cv2.COLOR_BGR2RGB)
 
         # resize height and witdh
