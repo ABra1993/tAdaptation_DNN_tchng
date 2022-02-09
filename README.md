@@ -5,7 +5,7 @@ Studying temporal dynamics in Convolutional Neural Networks (CNNs). Model archit
 - cnn_sat_adapt.py: this script simulates (for n timepoints) a feedforward CNN - same architectures as for the cnn_sat.py - implemented with intrinsic adaptation, as has been done previously by Vinken et al. (2020).
 - cnn_sat_rnn.py: this script simulates a recurrent CNN, that has been previously developed by Spoerer and colleagues (2020).
 
-Pretrained weights area available for all networks (link to the OSF page can be found in Spoerer et al, 2020), where for the recurrent CNN, a number of 8 timesteps has been used. Results of the simulations can be found in the visualizations folder.
+Pretrained weights are available for all networks (https://osf.io/mz9hw/), where for the recurrent CNN, a number of 8 timesteps has been used (recurrent weights for each timestep trained seperately. Results of the simulations can be found in the visualizations folder.
 
 # References
 Spoerer, C. J., Kietzmann, T. C., Mehrer, J., Charest, I., & Kriegeskorte, N. (2020). Recurrent neural networks can explain flexible trading of speed and accuracy in biological vision. PLoS computational biology, 16(10), e1008215.
