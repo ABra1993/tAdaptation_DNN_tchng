@@ -28,11 +28,11 @@ def main():
     # ------------- values than can be adjusted -------------
 
     # define model and dataset
-    model_arch = 'b'                                                          # network architecture (options: b, b_k, b_f, b_d)
+    model_arch = 'b_d'                                                          # network architecture (options: b, b_k, b_f, b_d)
     dataset = 'ecoset'                                                          # dataset the network is trained on
 
     # determine layer from which to extract activations for visualization
-    layer = '5'
+    layer = '1'
 
     # set timeseries
     n_timesteps = 8                                                             # number of timesteps
@@ -73,8 +73,12 @@ def main():
     model = b_net_adapt(input_layer, classes, model_arch, alpha=alpha, beta=beta, n_timesteps=n_timesteps, cumulative_readout=True)
     # TODO: add trained weights!
 
-    # print model summary
-    print(model.summary())
+    # print layer names
+    for clayer in model.layers:
+        print(clayer.name)
+
+    # # print model summary
+    # print(model.summary())
 
     # load input (over time)
     img1_idx = 1
@@ -119,8 +123,8 @@ def main():
     # show plot
     plt.legend()
     plt.tight_layout()
-    plt.savefig('visualizations/repetition_adapt_' + model_arch + '_' + dataset)
-    plt.show()
+    plt.savefig('/home/amber/ownCloud/Documents/code/DNN_adaptation_git/visualizations/repetition_adapt_' + model_arch + '_' + dataset)
+    # plt.show()
 
 if __name__ == '__main__':
     main()

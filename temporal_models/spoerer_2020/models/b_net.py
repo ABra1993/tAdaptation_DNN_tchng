@@ -5,7 +5,7 @@ Keras implementation of B networks
 import tensorflow as tf
 
 
-def b_layer(x, filters, kernel, layer_num, pooling=True):
+def b_layer(x, filters, kernel_size, layer_num, pooling=True):
     '''Base layer for B models
     '''
 
@@ -15,7 +15,7 @@ def b_layer(x, filters, kernel, layer_num, pooling=True):
             name='MaxPool_Layer_{}'.format(layer_num))(x)
 
     x = tf.keras.layers.Conv2D(
-        filters, kernel, padding='same', use_bias=False,                        # padding with zeros evenly to the left/right or up/down of the input.
+        filters, kernel_size, padding='same', use_bias=False,                        # padding with zeros evenly to the left/right or up/down of the input.
         kernel_initializer='glorot_uniform',                                    # the Glorot methods allows for scaling the weight distribution on a layer-by-layer basis.
         kernel_regularizer=tf.keras.regularizers.l2(1e-6),
         name='Conv_Layer_{}'.format(layer_num))(x)

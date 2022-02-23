@@ -32,7 +32,7 @@ def main():
     dataset = 'ecoset'                                                          # dataset the network is trained on
 
     # determine layer from which to extract activations for visualization
-    layer = '5'
+    layer = '3'
 
     # set timeseries
     stim_duration = 2                                                           # stimulus duration
@@ -108,7 +108,7 @@ def main():
     ax.axvspan(t[start[0]], t[start[0]]+stim_duration*dt, color='grey', alpha=0.2, label='stimulus')
     ax.axvspan(t[start[1]], t[start[1]]+stim_duration*dt, color='grey', alpha=0.2)
     ax.plot(t, activations/np.amax(activations), 'k', label='activation')
-    ax.set_title('Recurrent network (layer: ' + nlayer + ')')
+    ax.set_title('Recurrent network (layer: ' + layer + ')')
     ax.set_xlabel('Time (s)')
     ax.set_ylabel('Normalized activations (a.u)')
 

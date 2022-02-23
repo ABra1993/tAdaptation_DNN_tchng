@@ -69,8 +69,12 @@ def main():
     input_layer = tf.keras.layers.Input((input_shape[0], input_shape[1], input_shape[2]))
     model = load_pretrained_model(model_arch, dataset, input_layer, classes)
 
-    # print model summary
-    print(model.summary())
+    # print layer names
+    for clayer in model.layers:
+        print(clayer.name)
+
+    # # print model summary
+    # print(model.summary())
 
     # load input (over time)
     img1_idx = 1
