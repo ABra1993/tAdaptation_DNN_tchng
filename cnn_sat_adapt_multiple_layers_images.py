@@ -27,17 +27,22 @@ def main():
 
     # ------------- values than can be adjusted -------------
 
-    # TODO: variable for train or test set
+
+
+    # TODO: variable for range of layers or only one layer
 
     # define model and dataset
     model_arch = 'b_f'                                                            # network architecture (options: b, b_k, b_f, b_d)
     dataset = 'ecoset'                                                          # dataset the network is trained on
 
     # determine layer from which to extract activations for visualization (range(0, int(layer)+1))
-    layer = '2'
+    layer = '1'
 
-    # names of images that are used as input and whose results are averaged
-    imgls = ['1', 'testturtle']
+    # Train or test set
+    train_or_test = 'test'                                                     # options: 'train' or 'test'
+
+    # class of images used (options are all subfiles in the test or train directories)
+    imgclass = '0001_man'
 
     # set timeseries
     n_timesteps = 8                                                             # number of timesteps
@@ -78,11 +83,19 @@ def main():
     model = b_net_adapt(input_layer, classes, model_arch, alpha=alpha, beta=beta, n_timesteps=n_timesteps, cumulative_readout=True)
 
     # add trained weights
-    #model.load_weights('bl_ecoset.h5')
+    # model.load_weights('bl_ecoset.h5')
 
     # print layer names
     for clayer in model.layers:
         print(clayer.name)
+
+    # names of images that are used as input and whose results are averaged
+    if train_or_test == 'train':
+        imgls = os.listdir('visualizations/stimuli/ecoset_subset_train_25/' + imgclass)
+        imgls = ['ecoset_subset_train_25/' + imgclass + '/' + img for img in imgls]
+    else:
+        imgls = os.listdir('visualizations/stimuli/ecoset_subset_test_25/' + imgclass)
+        imgls = ['ecoset_subset_test_25/' + imgclass + '/' + img for img in imgls]
 
     # count of image for loop
     imgcount = 0
