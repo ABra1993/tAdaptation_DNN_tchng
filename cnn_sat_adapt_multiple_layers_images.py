@@ -34,13 +34,13 @@ def main():
     dataset = 'ecoset'                                                          # dataset the network is trained on
 
     # determine layer from which to extract activations for visualization (range(0, int(layer)+1))
-    layer = '0'
+    layer = '1'
 
     # Train or test set
     train_or_test = 'test'                                                      # options: 'train' or 'test'
 
     # list of classes of images used (options are all subfiles in the test or train directories)
-    imgclass = ['0001_man', '0005_house']
+    imgclass = ['0001_man']
 
     # set timeseries
     n_timesteps = 8                                                             # number of timesteps
@@ -84,8 +84,8 @@ def main():
     # model.load_weights('bl_ecoset.h5')
 
     # print layer names
-    for clayer in model.layers:
-        print(clayer.name)
+    #for clayer in model.layers:
+    #    print(clayer.name)
 
     # Create list of names of images for model input
     imgls = []
@@ -134,6 +134,13 @@ def main():
     avg_act_array = np.mean(act_array, axis=2)
     avg_sup_array = np.mean(sup_array, axis=2)
     print('act array average is ', avg_act_array)
+
+    # Create and print array of RS (activation at beginning of stim1 - act at beginning of stim2)
+    RS = np.zeros(int(layer)+1)
+    for lay in range(0, int(layer) + 1):
+        RS[lay] = avg_act_array[lay][start[0]] - avg_act_array[lay][start[1]]
+
+    print('Repetition Suppression per layer: \n',RS)
 
     # determine time it took to run script (check GPU-access)
     executionTime = (time.time() - startTime)
