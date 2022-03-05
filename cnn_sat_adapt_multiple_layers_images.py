@@ -27,8 +27,6 @@ def main():
 
     # ------------- values than can be adjusted -------------
 
-
-
     # TODO: variable for range of layers or only one layer
 
     # define model and dataset
@@ -36,13 +34,13 @@ def main():
     dataset = 'ecoset'                                                          # dataset the network is trained on
 
     # determine layer from which to extract activations for visualization (range(0, int(layer)+1))
-    layer = '1'
+    layer = '0'
 
     # Train or test set
-    train_or_test = 'test'                                                     # options: 'train' or 'test'
+    train_or_test = 'test'                                                      # options: 'train' or 'test'
 
-    # class of images used (options are all subfiles in the test or train directories)
-    imgclass = '0001_man'
+    # list of classes of images used (options are all subfiles in the test or train directories)
+    imgclass = ['0001_man', '0005_house']
 
     # set timeseries
     n_timesteps = 8                                                             # number of timesteps
@@ -89,13 +87,17 @@ def main():
     for clayer in model.layers:
         print(clayer.name)
 
-    # names of images that are used as input and whose results are averaged
-    if train_or_test == 'train':
-        imgls = os.listdir('visualizations/stimuli/ecoset_subset_train_25/' + imgclass)
-        imgls = ['ecoset_subset_train_25/' + imgclass + '/' + img for img in imgls]
-    else:
-        imgls = os.listdir('visualizations/stimuli/ecoset_subset_test_25/' + imgclass)
-        imgls = ['ecoset_subset_test_25/' + imgclass + '/' + img for img in imgls]
+    # Create list of names of images for model input
+    imgls = []
+
+    for cat in imgclass:
+        if train_or_test == 'train':
+            classls = os.listdir('visualizations/stimuli/ecoset_subset_train_25/' + cat)
+            classls = ['ecoset_subset_train_25/' + cat + '/' + img for img in classls]
+        else:
+            classls = os.listdir('visualizations/stimuli/ecoset_subset_test_25/' + cat)
+            classls = ['ecoset_subset_test_25/' + cat + '/' + img for img in classls]
+        imgls = imgls + classls
 
     # count of image for loop
     imgcount = 0
