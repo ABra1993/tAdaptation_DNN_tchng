@@ -27,20 +27,21 @@ def main():
 
     # ------------- values than can be adjusted -------------
 
-    # TODO: variable for range of layers or only one layer
+    # Compute range of layers or only one layer
+    range_or_one = 'range'                                                      # options: 'range' or 'one'
 
     # define model and dataset
     model_arch = 'b_f'                                                            # network architecture (options: b, b_k, b_f, b_d)
     dataset = 'ecoset'                                                          # dataset the network is trained on
 
     # determine layer from which to extract activations for visualization (range(0, int(layer)+1))
-    layer = '1'
+    layer = '2'
 
     # Train or test set
     train_or_test = 'test'                                                      # options: 'train' or 'test'
 
     # list of classes of images used (options are all subfiles in the test or train directories)
-    imgclass = ['0001_man']
+    imgclass = ['0294_cauliflower', '0001_man']
 
     # set timeseries
     n_timesteps = 8                                                             # number of timesteps
@@ -79,9 +80,9 @@ def main():
 
     # initiate model architecture
     model = b_net_adapt(input_layer, classes, model_arch, alpha=alpha, beta=beta, n_timesteps=n_timesteps, cumulative_readout=True)
-
+    print(model.summary())
     # add trained weights
-    # model.load_weights('bl_ecoset.h5')
+    model.load_weights('bl_ecoset.h5', by_name = True, skip_mismatch = True)
 
     # print layer names
     #for clayer in model.layers:
@@ -99,8 +100,14 @@ def main():
             classls = ['ecoset_subset_test_25/' + cat + '/' + img for img in classls]
         imgls = imgls + classls
 
+    act_array, sup_array = compute_act_sup (model, imgls, layer, range_or_one, n_timesteps, input_layer, input_shape, stim_duration, start, alpha, beta)
+
+    """
     # count of image for loop
     imgcount = 0
+    # create 3-dimensional arrays
+    act_array = np.zeros((int(layer), n_timesteps, len(imgls)))
+    sup_array = np.zeros((int(layer), n_timesteps, len(imgls)))
 
     for img in imgls:
 
@@ -110,11 +117,7 @@ def main():
         # load input over time
         input_tensor1 = load_input_timepts(input_img, input_shape, n_timesteps, stim_duration, start)
 
-        # create 3-dimensional arrays
-        act_array = np.zeros((int(layer)+1, n_timesteps, len(imgls)))
-        sup_array = np.zeros((int(layer)+1, n_timesteps, len(imgls)))
-
-        for n in range(0, int(layer)+1):
+        for n in range(0, int(layer)):
             for i in range(n_timesteps):
 
                 # retrieve activations
@@ -128,7 +131,7 @@ def main():
                 sup_array[n][i][imgcount] = alpha * sup_array[n][i-1][imgcount] + (1 - alpha) * act_array[n][i-1][imgcount]
 
         imgcount += 1
-
+    """
 
     # Make array with average activations and supressions
     avg_act_array = np.mean(act_array, axis=2)
@@ -136,8 +139,8 @@ def main():
     print('act array average is ', avg_act_array)
 
     # Create and print array of RS (activation at beginning of stim1 - act at beginning of stim2)
-    RS = np.zeros(int(layer)+1)
-    for lay in range(0, int(layer) + 1):
+    RS = np.zeros(int(layer))
+    for lay in range(0, int(layer)):
         RS[lay] = avg_act_array[lay][start[0]] - avg_act_array[lay][start[1]]
 
     print('Repetition Suppression per layer: \n',RS)
@@ -151,7 +154,7 @@ def main():
 
     # make string of all layers for title
     titlestr = ''
-    for lay in range(0, int(layer)+1):
+    for lay in range(1, int(layer)+1):
         titlestr = titlestr + str(lay) + ', '
     titlestr = titlestr[:-2]
 
@@ -163,9 +166,9 @@ def main():
     ax.axvspan(t[start[0]], t[start[0]]+stim_duration*dt, color='grey', alpha=0.2, label='stimulus')
     ax.axvspan(t[start[1]], t[start[1]]+stim_duration*dt, color='grey', alpha=0.2)
 
-    for lay in range(0, int(layer)+1):
-        ax.plot(t, avg_act_array[lay]/np.amax(avg_act_array[lay]), label='act layer '+str(lay), color=clls[lay])
-        ax.plot(t, avg_sup_array[lay]/np.amax(avg_sup_array[lay]), label='sup layer '+str(lay), color=clls[lay], linestyle = '--', alpha=0.5)
+    for lay in range(0, int(layer)):
+        ax.plot(t, avg_act_array[lay]/np.amax(avg_act_array[lay]), label='act layer '+str(lay+1), color=clls[lay])
+        ax.plot(t, avg_sup_array[lay]/np.amax(avg_sup_array[lay]), label='sup layer '+str(lay+1), color=clls[lay], linestyle = '--', alpha=0.5)
     ax.set_title('Feedforward network with adaptation (layer: ' + titlestr + '. Model ' + model_arch + ')')
     ax.set_xlabel('Time (s)')
     ax.set_ylabel('Normalized activations (a.u)')

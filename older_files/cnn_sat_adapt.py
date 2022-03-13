@@ -71,7 +71,7 @@ def main():
 
     # initiate model architecture
     model = b_net_adapt(input_layer, classes, model_arch, alpha=alpha, beta=beta, n_timesteps=n_timesteps, cumulative_readout=True)
-    # TODO: add trained weights!
+    model.load_weights('bl_ecoset.h5', by_name = True, skip_mismatch = True)
 
     # print layer names
     for clayer in model.layers:
