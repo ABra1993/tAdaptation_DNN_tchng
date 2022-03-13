@@ -158,3 +158,63 @@ def load_pretrained_model(model_arch, dataset, input_layer, classes):
     # model.load_weights('temporal_models/spoerer_2020/weights/' + model_arch + '_' + dataset + '.h5')
 
     return model
+
+def compute_act_sup (model, imgls, layer, range_or_one, n_timesteps, input_layer, input_shape, stim_duration, start, alpha, beta):
+    """ Computes activations and suppressions for a given list of images.
+
+    params
+    -----------------------
+    All parameters are the same as given in the cnn_sat_adapt files,
+    their explanations can be found there.
+
+    returns
+    -----------------------
+    act_array: array
+        array of activations per layer, per image and per timestep.
+    sup_array: array
+        array of suppressions per layer, per image and per timestep.
+
+    """
+    if range_or_one == 'range':
+        layerloop = int(layer)
+
+    elif range_or_one == 'one':
+        layerloop = 1
+
+    else: print('please indicate whether to compute the range of layers or only one')
+
+    # create arrays
+    act_array = np.zeros((layerloop, n_timesteps, len(imgls)))
+    sup_array = np.zeros((layerloop, n_timesteps, len(imgls)))
+
+    # Loop through images
+    imgcount = 0
+    for img in imgls:
+
+        # Show image as input
+        input_img, raw_img = load_input_images(input_layer, input_shape, n_timesteps, [img, img])
+
+        # load input over time
+        input_tensor1 = load_input_timepts(input_img, input_shape, n_timesteps, stim_duration, start)
+
+        for n in range(layerloop):
+            for i in range(n_timesteps):
+
+                # retrieve activations
+                if range_or_one == 'range':
+                    layernum = [model.get_layer('ReLU_Layer_{}_Time_{}'.format(str(n + 1), i)).output]
+                else:
+                    layernum = [model.get_layer('ReLU_Layer_{}_Time_{}'.format(layer, i)).output]
+
+                get_layer_activation = tf.keras.backend.function(
+                [model.input],
+                layernum)
+                temp = get_layer_activation(input_tensor1[i, :, :, :])
+                act_array[n][i][imgcount] = np.nanmean(temp)
+
+                # compute suppression
+                sup_array[n][i][imgcount] = alpha * sup_array[n][i-1][imgcount] + (1 - alpha) * act_array[n][i-1][imgcount]
+
+        imgcount += 1
+
+    return act_array, sup_array
