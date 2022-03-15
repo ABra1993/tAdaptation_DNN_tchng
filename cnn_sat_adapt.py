@@ -22,6 +22,9 @@ user-defined layer of the network.
 
 def main():
 
+    # GPU acces
+    os.environ['TF_XLA_FLAGS'] = '--tf_xla_enable_xla_devices'
+
     # start time
     startTime = time.time()
 
