@@ -68,6 +68,7 @@ def main():
     # building the model and load weights
     input_layer = tf.keras.layers.Input((input_shape[0], input_shape[1], input_shape[2]))
     model = load_pretrained_model(model_arch, dataset, input_layer, classes)
+    model del
 
     # print layer names
     for clayer in model.layers:
