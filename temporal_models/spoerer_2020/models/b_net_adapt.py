@@ -8,9 +8,7 @@ import sys
 
 class BConvLayer(object):
     '''BL recurrent convolutional layer
-
     Note that this is NOT A KERAS LAYER but is an object containing Keras layers
-
     Args:
         filters: Int, number of output filters in convolutions
         kernel_size: Int or tuple/list of 2 integers, specifying the height and
@@ -52,6 +50,7 @@ class BConvLayer(object):
             # compute activation with intrinsic suppression
             s_current = tf.math.add(tf.math.multiply(self.alpha, s_input), tf.math.multiply(tf.math.subtract(1, self.alpha), l_input))
             r_current = tf.math.subtract(b_input_current, tf.math.multiply(self.beta, s_current))
+            # print(s_current)
 
             # return element-wise sum of convolutions
             return r_current, s_current
@@ -61,7 +60,6 @@ class BConvLayer(object):
 
 def b_net_adapt(input_tensor, classes, model_arch, alpha=0.96, beta=0.7, n_timesteps=8, cumulative_readout=False):
         """ Returns a feedforward B-model with intrinsic adaptation
-
         """
 
         data_format = tf.keras.backend.image_data_format()
@@ -171,7 +169,6 @@ def b_net_adapt(input_tensor, classes, model_arch, alpha=0.96, beta=0.7, n_times
                                 pool_size=(2, 2),
                                 name='MaxPool_Layer_{}_Time_{}'.format(n, t)
                                 )(activations[t][n-1])
-
 
                 # get the lateral input and suppression state
                 if t == 0:

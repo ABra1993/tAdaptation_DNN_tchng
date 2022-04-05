@@ -31,20 +31,20 @@ def main():
     # ------------- values than can be adjusted -------------
 
     # define model and dataset
-    model_arch = 'b_d'                                                          # network architecture (options: b, b_k, b_f, b_d)
+    model_arch = 'b'                                                          # network architecture (options: b, b_k, b_f, b_d)
     dataset = 'ecoset'                                                          # dataset the network is trained on
 
     # determine layer from which to extract activations for visualization
     layer = '1'
 
     # set timeseries
-    n_timesteps = 8                                                             # number of timesteps
-    stim_duration = 2                                                           # stimulus duration
-    start = [1, 4]                                                              # starting points of stimuli
+    n_timesteps = 20                                                         # number of timesteps
+    stim_duration = 3                                                          # stimulus duration
+    start = [4, 12]                                                              # starting points of stimuli
 
     # adaptation parameters
-    alpha = 0.96
-    beta = 0.7
+    alpha = 0.9
+    beta = 0.3
 
     # --------------------------------------------------------
 
@@ -75,10 +75,11 @@ def main():
     # initiate model architecture
     model = b_net_adapt(input_layer, classes, model_arch, alpha=alpha, beta=beta, n_timesteps=n_timesteps, cumulative_readout=True)
     # TODO: add trained weights!
+    # print(model.summary())
 
-    # print layer names
-    for clayer in model.layers:
-        print(clayer.name)
+    # # print layer names
+    # for clayer in model.layers:
+    #     print(clayer.name)
 
     # # print model summary
     # print(model.summary())
@@ -89,22 +90,47 @@ def main():
     input_img, raw_img = load_input_images(input_layer, input_shape, n_timesteps, [img1_idx, img2_idx])
 
     # load input over time
-    input_tensor1 = load_input_timepts(input_img, input_shape, n_timesteps, stim_duration, start)
+    input_tensor = load_input_timepts(input_img, input_shape, n_timesteps, stim_duration, start)
 
-    # retrieve activations
+    # run model and extract linear readout
+    readout = np.zeros((n_timesteps, classes))
+    readout_max = np.zeros((n_timesteps))
     activations = np.zeros(n_timesteps)
+    s = np.zeros(n_timesteps)
+
+    # get network info
+    max_categories = []
     for i in range(n_timesteps):
 
+        # extract readout (i.e. softmax)
+        get_layer_activation_readout = tf.keras.backend.function(
+            [model.input],
+            [model.get_layer('Sotfmax_Time_{}'.format(i)).output])
+        readout[i, :] = get_layer_activation_readout(input_tensor[i, :, :, :, :])[0][0]
+        readout_max[i] = max(readout[i, :])
+
+        # extract index with highest value
+        cat_idx_max = np.argmax(readout[i, :])
+        cat_max = categories[cat_idx_max]
+        max_categories.append(cat_max)
+
+        # print classification
+        print('Timestep: ', i)
+        print('Model prediction: ', cat_max, '(softmax output: ', readout_max[i], ')')
+        print('\n')
+
+        # extract activation for specific layer
         get_layer_activation = tf.keras.backend.function(
             [model.input],
             [model.get_layer('ReLU_Layer_{}_Time_{}'.format(layer, i)).output])
-        temp = get_layer_activation(input_tensor1[i, :, :, :])
-        activations[i] = np.nanmean(temp)
+        activations_temp = get_layer_activation(input_tensor[i, :, :, :, :])
+        activations[i] = np.nanmean(activations_temp)
 
-    # compute suppression
-    s = np.zeros(n_timesteps)
-    for i in range(1, n_timesteps):
-        s[i] = alpha * s[i-1] + (1 - alpha) * activations[i-1]
+        # compute suppression
+        if i == 0:
+            continue
+        else:
+            s[i] = alpha * s[i-1] + (1 - alpha) * activations[i-1]
 
     # determine time it took to run script (check GPU-access)
     executionTime = (time.time() - startTime)
@@ -115,19 +141,22 @@ def main():
     ax = plt.gca()
 
     # plot activations
-    ax.axvspan(t[start[0]], t[start[0]]+stim_duration*dt, color='grey', alpha=0.2, label='stimulus')
-    ax.axvspan(t[start[1]], t[start[1]]+stim_duration*dt, color='grey', alpha=0.2)
-    ax.plot(t, s/np.amax(s), 'grey', label='suppression')
-    ax.plot(t, activations/np.amax(activations), 'k', label='activation')
+    ax.axvspan(start[0], start[0]+stim_duration, color='grey', alpha=0.2, label='stimulus')
+    ax.axvspan(start[1], start[1]+stim_duration, color='grey', alpha=0.2)
+    # ax.plot(t, s/np.amax(s), 'grey', label='suppression')
+    # ax.plot(t, activations/np.amax(activations), 'k', label='activation')
+    ax.plot(s, 'grey', label='suppression')
+    ax.plot(activations, 'k', label='activation')
     ax.set_title('Feedforward network with adaptation (layer: ' + layer + ', ' + model_arch + ')')
-    ax.set_xlabel('Time (s)')
-    ax.set_ylabel('Normalized activations (a.u)')
+    ax.set_xlabel('Timesteps')
+    # ax.set_ylabel('Normalized activations (a.u)')
+    ax.set_ylabel('Activations (a.u)')
 
     # show plot
     plt.legend()
     plt.tight_layout()
     plt.savefig('/home/amber/ownCloud/Documents/code/DNN_adaptation_git/visualizations/repetition_adapt_' + model_arch + '_' + dataset)
-    # plt.show()
+    plt.show()
 
 if __name__ == '__main__':
     main()
