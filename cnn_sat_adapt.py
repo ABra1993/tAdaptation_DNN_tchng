@@ -5,6 +5,7 @@ import sys
 import numpy as np
 import tensorflow as tf
 import time
+from keras.models import Model
 
 # required scripts
 from temporal_models.spoerer_2020.models.preprocess import preprocess_image
@@ -38,9 +39,9 @@ def main():
     layer = '1'
 
     # set timeseries
-    n_timesteps = 20                                                         # number of timesteps
-    stim_duration = 3                                                          # stimulus duration
-    start = [4, 12]                                                              # starting points of stimuli
+    n_timesteps = 100                                                        # number of timesteps
+    stim_duration = 30                                                          # stimulus duration
+    start = [10, 50]                                                              # starting points of stimuli
 
     # adaptation parameters
     alpha = 0.96
@@ -69,8 +70,8 @@ def main():
         sys.exit()
 
     # input_shape (HARD-coded)
-    input_shape = [128, 128, 3]
-    input_layer = tf.keras.layers.Input((input_shape[0], input_shape[1], input_shape[2]))
+    input_shape = [n_timesteps, 128, 128, 3]
+    input_layer = tf.keras.layers.Input((input_shape[0], input_shape[1], input_shape[2], input_shape[3]))
 
     # initiate model architecture
     model = b_net_adapt(input_layer, classes, model_arch, alpha=alpha, beta=beta, n_timesteps=n_timesteps, cumulative_readout=True)
@@ -91,6 +92,10 @@ def main():
 
     # load input over time
     input_tensor = load_input_timepts(input_img, input_shape, n_timesteps, stim_duration, start)
+    # input_tensor.expand_dims(input_tensor, 0)
+    # input_tensor = tf.convert_to_tensor(input_tensor)
+    input_tensor = tf.expand_dims(input_tensor, 0)
+    # print(input_tensor.shape)
 
     # run model and extract linear readout
     readout = np.zeros((n_timesteps, classes))
@@ -101,42 +106,42 @@ def main():
 
     # get network info
     max_categories = []
-    for i in range(n_timesteps):
+    for t in range(n_timesteps):
 
         # extract readout (i.e. softmax)
         get_layer_activation_readout = tf.keras.backend.function(
             [model.input],
-            [model.get_layer('Sotfmax_Time_{}'.format(i)).output])
-        readout[i, :] = get_layer_activation_readout(input_tensor[i, :, :, :, :])[0][0]
-        readout_max[i] = max(readout[i, :])
+            [model.get_layer('Sotfmax_Time_{}'.format(t)).output])
+        readout[t, :] = get_layer_activation_readout(input_tensor)[0][0]
+        readout_max[t] = max(readout[t, :])
 
         # extract index with highest value
-        cat_idx_max = np.argmax(readout[i, :])
+        cat_idx_max = np.argmax(readout[t, :])
         cat_max = categories[cat_idx_max]
         max_categories.append(cat_max)
 
         # print classification
-        print('Timestep: ', i)
-        print('Model prediction: ', cat_max, '(softmax output: ', readout_max[i], ')')
+        print('Timestep: ', t)
+        print('Model prediction: ', cat_max, '(softmax output: ', readout_max[t], ')')
         print('\n')
 
         # extract activation for specific layer
         get_layer_activation = tf.keras.backend.function(
             [model.input],
-            [model.get_layer('ReLU_Layer_{}_Time_{}'.format(layer, i)).output])
-        activations_temp = get_layer_activation(input_tensor[i, :, :, :, :])
-        activations[i] = np.nanmean(activations_temp)
+            [model.get_layer('ReLU_Layer_{}_Time_{}'.format(layer, t)).output])
+        activations_temp = get_layer_activation(input_tensor)
+        activations[t] = np.nanmean(activations_temp)
 
         # extract suppression
-        if i > 0:
+        if t > 0:
             get_layer_suppression = tf.keras.backend.function(
                 [model.input],
-                [model.get_layer('{}_S_Time_{}'.format(layer, i)).output])
-            suppressions_temp = get_layer_suppression(input_tensor[i, :, :, :, :])
-            print(np.mean(suppressions_temp))
-            suppressions[i] = np.nanmean(suppressions_temp)
+                [model.get_layer('{}_S_Time_{}'.format(layer, t)).output])
+            suppressions_temp = get_layer_suppression(input_tensor)
+            # print(np.mean(suppressions_temp))
+            suppressions[t] = np.nanmean(suppressions_temp)
 
-            s[i] = alpha * s[i-1] + (1 - alpha) * activations[i-1]
+            s[t] = alpha * s[t-1] + (1 - alpha) * activations[t-1]
 
     # determine time it took to run script (check GPU-access)
     executionTime = (time.time() - startTime)

@@ -153,8 +153,9 @@ def b_net_adapt(input_tensor, classes, model_arch, alpha=0.96, beta=0.7, n_times
                 if n == 0:
 
                     # B conv on the image does not need to be recomputed
-                    if t == 0:
-                        b_input = input_tensor
+                    if n == 0:
+                        b_input = input_tensor[:, t, :, :, :]
+                        print(input_tensor.shape)
                     else:
                         b_input =  None
 
