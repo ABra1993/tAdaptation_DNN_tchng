@@ -22,19 +22,20 @@ class BConvLayer(object):
         # adaptation values
         self.alpha = tf.constant(alpha)
         self.beta = tf.constant(beta)
+        self.layer_name = layer_name
 
         # initialise convolutional layers
         self.b_conv = tf.keras.layers.Conv2D(
             filters, kernel_size, padding='same', use_bias=False,
             kernel_initializer='glorot_uniform',
             kernel_regularizer=tf.keras.regularizers.l2(1e-6),
-            name='{}_BConv'.format(layer_name))
+            name='{}_BConv'.format(self.layer_name))
 
         # holds the most recent bottom-up conv
         # useful when the bottom-up input does not change, e.g. input image
         self.previous_b_conv = None
 
-    def __call__(self, b_input=None, l_input=None, s_input=None):
+    def __call__(self, t, b_input=None, l_input=None, s_input=None):
 
         if not b_input is None: # run bottom-up conv and save result
             b_input_current = self.b_conv(b_input)
@@ -48,7 +49,7 @@ class BConvLayer(object):
         if not s_input is None:
 
             # compute activation with intrinsic suppression
-            s_current = tf.math.add(tf.math.multiply(self.alpha, s_input), tf.math.multiply(tf.math.subtract(1, self.alpha), l_input))
+            s_current = tf.math.add(tf.math.multiply(self.alpha, s_input), tf.math.multiply(tf.math.subtract(1, self.alpha), l_input), name='{}_S_Time_{}'.format(self.layer_name, t))
             r_current = tf.math.subtract(b_input_current, tf.math.multiply(self.beta, s_current))
             # print(s_current)
 
@@ -174,11 +175,11 @@ def b_net_adapt(input_tensor, classes, model_arch, alpha=0.96, beta=0.7, n_times
                 if t == 0:
                     l_input = None
                     s_input = None
-                    x_tn = layer(b_input, l_input, s_input)
+                    x_tn = layer(t, b_input, l_input, s_input)
                 else:
                     l_input = activations[t-1][n]
                     s_input = s[t-1][n]
-                    x_tn, s_current = layer(b_input, l_input, s_input)
+                    x_tn, s_current = layer(t, b_input, l_input, s_input)
 
                 # batch normalization
                 x_tn = tf.keras.layers.BatchNormalization(
