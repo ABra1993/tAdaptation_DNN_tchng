@@ -43,8 +43,8 @@ def main():
     start = [4, 12]                                                              # starting points of stimuli
 
     # adaptation parameters
-    alpha = 0.9
-    beta = 0.3
+    alpha = 0.96
+    beta = 0.7
 
     # --------------------------------------------------------
 
@@ -77,9 +77,9 @@ def main():
     # TODO: add trained weights!
     # print(model.summary())
 
-    # # print layer names
-    # for clayer in model.layers:
-    #     print(clayer.name)
+    # print layer names
+    for clayer in model.layers:
+        print(clayer.name)
 
     # # print model summary
     # print(model.summary())
@@ -96,6 +96,7 @@ def main():
     readout = np.zeros((n_timesteps, classes))
     readout_max = np.zeros((n_timesteps))
     activations = np.zeros(n_timesteps)
+    suppressions = np.zeros(n_timesteps)
     s = np.zeros(n_timesteps)
 
     # get network info
@@ -126,10 +127,15 @@ def main():
         activations_temp = get_layer_activation(input_tensor[i, :, :, :, :])
         activations[i] = np.nanmean(activations_temp)
 
-        # compute suppression
-        if i == 0:
-            continue
-        else:
+        # extract suppression
+        if i > 0:
+            get_layer_suppression = tf.keras.backend.function(
+                [model.input],
+                [model.get_layer('{}_S_Time_{}'.format(layer, i)).output])
+            suppressions_temp = get_layer_suppression(input_tensor[i, :, :, :, :])
+            print(np.mean(suppressions_temp))
+            suppressions[i] = np.nanmean(suppressions_temp)
+
             s[i] = alpha * s[i-1] + (1 - alpha) * activations[i-1]
 
     # determine time it took to run script (check GPU-access)
@@ -143,10 +149,11 @@ def main():
     # plot activations
     ax.axvspan(start[0], start[0]+stim_duration, color='grey', alpha=0.2, label='stimulus')
     ax.axvspan(start[1], start[1]+stim_duration, color='grey', alpha=0.2)
-    # ax.plot(t, s/np.amax(s), 'grey', label='suppression')
-    # ax.plot(t, activations/np.amax(activations), 'k', label='activation')
-    ax.plot(s, 'grey', label='suppression')
-    ax.plot(activations, 'k', label='activation')
+    ax.plot(suppressions/np.amax(suppressions), 'grey', label='suppression_layer')
+    ax.plot(s/np.amax(s), 'grey', linestyle='dashed', label='suppression')
+    ax.plot(activations/np.amax(activations), 'k', label='activation')
+    # ax.plot(suppressions, 'grey', label='suppression')
+    # ax.plot(activations, 'k', label='activation')
     ax.set_title('Feedforward network with adaptation (layer: ' + layer + ', ' + model_arch + ')')
     ax.set_xlabel('Timesteps')
     # ax.set_ylabel('Normalized activations (a.u)')
