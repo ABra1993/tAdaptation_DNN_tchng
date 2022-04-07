@@ -6,6 +6,7 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 import cv2
 import sys
+import h5py
 
 # required scripts
 from temporal_models.spoerer_2020.models.preprocess import preprocess_image
@@ -47,7 +48,7 @@ def load_input_images(input_layer, input_shape, timepts, img_idx):
     # import images
     raw_img = []
     for i in range(len(img_idx)):
-    # for i in range(1):
+    #for i in range(1):
 
         # import image
         raw_img_temp = cv2.imread('visualizations/stimuli/' + str(img_idx[i]))
@@ -154,9 +155,6 @@ def load_pretrained_model(model_arch, dataset, input_layer, classes):
         print('Model does not exist!')
         sys.exit()
 
-    # load weights into the model
-    # model.load_weights('temporal_models/spoerer_2020/weights/' + model_arch + '_' + dataset + '.h5')
-
     return model
 
 def compute_act_sup (model, imgls, layer, range_or_one, n_timesteps, input_layer, input_shape, stim_duration, start, alpha, beta):
@@ -218,3 +216,50 @@ def compute_act_sup (model, imgls, layer, range_or_one, n_timesteps, input_layer
         imgcount += 1
 
     return act_array, sup_array
+
+def read_hdf5(path):
+    """ Creates dictionary with layers for keys and weights for values for a given h5 file."""
+    weights = {}
+    keys = []
+    with h5py.File(path, 'r') as f: # open file
+        f.visit(keys.append) # append all keys to list
+        for key in keys:
+            if ':' in key: # contains data if ':' in key
+                weights[f[key].name] = f[key][()]
+    return weights
+
+def manually_load_weights(prepdic, model):
+    """ Manually loads weights in prepdic into model"""
+    dic = {}
+    for wname in prepdic:
+
+        if 'Readout' in wname and wname[0:27] not in dic.keys():
+            dic[wname[0:27]] = [prepdic[wname]]
+        elif 'Readout' in wname and wname[0:27] in dic.keys():
+            dic[wname[0:27]].append(prepdic[wname])
+
+        elif 'Conv' in wname:
+            dic[wname[0:13]] = [prepdic[wname]]
+
+        elif len(wname) < 37:
+            dic[wname] = prepdic[wname]
+        elif wname[0:36] not in dic.keys():
+            dic[wname[0:36]] = [prepdic[wname]]
+        else: dic[wname[0:36]].append(prepdic[wname])
+
+    for wname in dic:
+        for i, lay in enumerate(model.layers):
+            mname = lay.name
+            for n in range(0, 7):
+                if 'BatchNorm_Layer_'+str(n) in mname and 'BatchNorm_Layer_'+str(n) in wname:
+                    model.layers[i].set_weights([dic[wname][1], dic[wname][0], dic[wname][2], dic[wname][3]])
+                    print('setting batch', mname, wname)
+
+                if 'ACL_'+str(n) in mname and 'Conv_Layer_'+str(n) in wname:
+                    model.layers[i].set_weights(dic[wname])
+                    print('setting conv', mname, wname)
+
+            if 'ReadoutDense' in mname and 'ReadoutDense' in wname:
+                print('setting ', mname, wname)
+                model.layers[i].set_weights([dic[wname][1], dic[wname][0]])
+    return dic
