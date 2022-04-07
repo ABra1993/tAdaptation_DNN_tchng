@@ -40,9 +40,9 @@ def load_input_images(input_layer, input_shape, timepts, img_idx):
 
     # input over time
     if data_format == 'channels_last':
-        input_img = np.zeros((len(img_idx), input_shape[0], input_shape[1], input_shape[2]))
-    else:
         input_img = np.zeros((len(img_idx), input_shape[1], input_shape[2], input_shape[3]))
+    else:
+        input_img = np.zeros((len(img_idx), input_shape[3], input_shape[1], input_shape[2]))
 
     # import images
     raw_img = []
@@ -55,9 +55,9 @@ def load_input_images(input_layer, input_shape, timepts, img_idx):
 
         # resize height and witdh
         if data_format == 'channels_last':
-            img_resize = cv2.resize(raw_img_temp, (input_shape[0], input_shape[1]))
-        else:
             img_resize = cv2.resize(raw_img_temp, (input_shape[1], input_shape[2]))
+        else:
+            img_resize = cv2.resize(raw_img_temp, (input_shape[3], input_shape[4]))
         raw_img.append(img_resize)
 
         # scale pixel values
@@ -99,16 +99,16 @@ def load_input_timepts(input_img, input_shape, timepts, stim_duration, start):
 
     # input over time
     if data_format == 'channels_last':
-        input = np.zeros((timepts, 1, input_shape[0], input_shape[1], input_shape[2]))
+        input = np.zeros((timepts, input_shape[1], input_shape[2], input_shape[3]))
     else:
-        input = np.zeros((timepts, 1, input_shape[1], input_shape[2], input_shape[0]))
+        input = np.zeros((timepts, input_shape[3], input_shape[1], input_shape[2]))
 
     for i in range(img_n):
 
         t_start = start[i]
         t_end = start[i] + stim_duration
 
-        input[t_start:t_end, :, :, :, :] = input_img[i] * stim_duration
+        input[t_start:t_end, :, :, :] = input_img[i] * stim_duration
 
     # convert to tensor
     input_tensor = tf.convert_to_tensor(input, dtype=tf.uint8)

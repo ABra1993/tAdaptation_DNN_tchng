@@ -5,6 +5,7 @@ import sys
 import numpy as np
 import tensorflow as tf
 import time
+from keras.models import Model
 
 # required scripts
 from temporal_models.spoerer_2020.models.preprocess import preprocess_image
@@ -22,22 +23,29 @@ user-defined layer of the network.
 
 def main():
 
+    # GPU acces
+    os.environ['TF_XLA_FLAGS'] = '--tf_xla_enable_xla_devices'
+
     # start time
     startTime = time.time()
 
     # ------------- values than can be adjusted -------------
 
     # define model and dataset
+<<<<<<< HEAD:older_files/cnn_sat_adapt.py
     model_arch = 'b_f'                                                          # network architecture (options: b, b_k, b_f, b_d)
+=======
+    model_arch = 'b'                                                          # network architecture (options: b, b_k, b_f, b_d)
+>>>>>>> 4cc426b8dbaadc1df13b517bc28d0d6cb0eb9c7e:cnn_sat_adapt.py
     dataset = 'ecoset'                                                          # dataset the network is trained on
 
     # determine layer from which to extract activations for visualization
     layer = '6'
 
     # set timeseries
-    n_timesteps = 8                                                             # number of timesteps
-    stim_duration = 2                                                           # stimulus duration
-    start = [1, 4]                                                              # starting points of stimuli
+    n_timesteps = 100                                                        # number of timesteps
+    stim_duration = 30                                                          # stimulus duration
+    start = [10, 50]                                                              # starting points of stimuli
 
     # adaptation parameters
     alpha = 0.96
@@ -66,12 +74,17 @@ def main():
         sys.exit()
 
     # input_shape (HARD-coded)
-    input_shape = [128, 128, 3]
-    input_layer = tf.keras.layers.Input((input_shape[0], input_shape[1], input_shape[2]))
+    input_shape = [n_timesteps, 128, 128, 3]
+    input_layer = tf.keras.layers.Input((input_shape[0], input_shape[1], input_shape[2], input_shape[3]))
 
     # initiate model architecture
     model = b_net_adapt(input_layer, classes, model_arch, alpha=alpha, beta=beta, n_timesteps=n_timesteps, cumulative_readout=True)
+<<<<<<< HEAD:older_files/cnn_sat_adapt.py
     model.load_weights('bl_ecoset.h5', by_name = True, skip_mismatch = True)
+=======
+    # TODO: add trained weights!
+    # print(model.summary())
+>>>>>>> 4cc426b8dbaadc1df13b517bc28d0d6cb0eb9c7e:cnn_sat_adapt.py
 
     # print layer names
     for clayer in model.layers:
@@ -86,22 +99,57 @@ def main():
     input_img, raw_img = load_input_images(input_layer, input_shape, n_timesteps, [img1_idx, img2_idx])
 
     # load input over time
-    input_tensor1 = load_input_timepts(input_img, input_shape, n_timesteps, stim_duration, start)
+    input_tensor = load_input_timepts(input_img, input_shape, n_timesteps, stim_duration, start)
+    # input_tensor.expand_dims(input_tensor, 0)
+    # input_tensor = tf.convert_to_tensor(input_tensor)
+    input_tensor = tf.expand_dims(input_tensor, 0)
+    # print(input_tensor.shape)
 
-    # retrieve activations
+    # run model and extract linear readout
+    readout = np.zeros((n_timesteps, classes))
+    readout_max = np.zeros((n_timesteps))
     activations = np.zeros(n_timesteps)
-    for i in range(n_timesteps):
+    suppressions = np.zeros(n_timesteps)
+    s = np.zeros(n_timesteps)
 
+    # get network info
+    max_categories = []
+    for t in range(n_timesteps):
+
+        # extract readout (i.e. softmax)
+        get_layer_activation_readout = tf.keras.backend.function(
+            [model.input],
+            [model.get_layer('Sotfmax_Time_{}'.format(t)).output])
+        readout[t, :] = get_layer_activation_readout(input_tensor)[0][0]
+        readout_max[t] = max(readout[t, :])
+
+        # extract index with highest value
+        cat_idx_max = np.argmax(readout[t, :])
+        cat_max = categories[cat_idx_max]
+        max_categories.append(cat_max)
+
+        # print classification
+        print('Timestep: ', t)
+        print('Model prediction: ', cat_max, '(softmax output: ', readout_max[t], ')')
+        print('\n')
+
+        # extract activation for specific layer
         get_layer_activation = tf.keras.backend.function(
             [model.input],
-            [model.get_layer('ReLU_Layer_{}_Time_{}'.format(layer, i)).output])
-        temp = get_layer_activation(input_tensor1[i, :, :, :])
-        activations[i] = np.nanmean(temp)
+            [model.get_layer('ReLU_Layer_{}_Time_{}'.format(layer, t)).output])
+        activations_temp = get_layer_activation(input_tensor)
+        activations[t] = np.nanmean(activations_temp)
 
-    # compute suppression
-    s = np.zeros(n_timesteps)
-    for i in range(1, n_timesteps):
-        s[i] = alpha * s[i-1] + (1 - alpha) * activations[i-1]
+        # extract suppression
+        if t > 0:
+            get_layer_suppression = tf.keras.backend.function(
+                [model.input],
+                [model.get_layer('{}_S_Time_{}'.format(layer, t)).output])
+            suppressions_temp = get_layer_suppression(input_tensor)
+            # print(np.mean(suppressions_temp))
+            suppressions[t] = np.nanmean(suppressions_temp)
+
+            s[t] = alpha * s[t-1] + (1 - alpha) * activations[t-1]
 
     # determine time it took to run script (check GPU-access)
     executionTime = (time.time() - startTime)
@@ -112,18 +160,26 @@ def main():
     ax = plt.gca()
 
     # plot activations
-    ax.axvspan(t[start[0]], t[start[0]]+stim_duration*dt, color='grey', alpha=0.2, label='stimulus')
-    ax.axvspan(t[start[1]], t[start[1]]+stim_duration*dt, color='grey', alpha=0.2)
-    ax.plot(t, s/np.amax(s), 'grey', label='suppression')
-    ax.plot(t, activations/np.amax(activations), 'k', label='activation')
+    ax.axvspan(start[0], start[0]+stim_duration, color='grey', alpha=0.2, label='stimulus')
+    ax.axvspan(start[1], start[1]+stim_duration, color='grey', alpha=0.2)
+    ax.plot(suppressions/np.amax(suppressions), 'grey', label='suppression_layer')
+    ax.plot(s/np.amax(s), 'grey', linestyle='dashed', label='suppression')
+    ax.plot(activations/np.amax(activations), 'k', label='activation')
+    # ax.plot(suppressions, 'grey', label='suppression')
+    # ax.plot(activations, 'k', label='activation')
     ax.set_title('Feedforward network with adaptation (layer: ' + layer + ', ' + model_arch + ')')
-    ax.set_xlabel('Time (s)')
-    ax.set_ylabel('Normalized activations (a.u)')
+    ax.set_xlabel('Timesteps')
+    # ax.set_ylabel('Normalized activations (a.u)')
+    ax.set_ylabel('Activations (a.u)')
 
     # show plot
     plt.legend()
     plt.tight_layout()
+<<<<<<< HEAD:older_files/cnn_sat_adapt.py
     plt.savefig('visualizations/repetition_adapt_' + model_arch + '_' + dataset)
+=======
+    plt.savefig('/home/amber/ownCloud/Documents/code/DNN_adaptation_git/visualizations/repetition_adapt_' + model_arch + '_' + dataset)
+>>>>>>> 4cc426b8dbaadc1df13b517bc28d0d6cb0eb9c7e:cnn_sat_adapt.py
     plt.show()
 
 if __name__ == '__main__':

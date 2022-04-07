@@ -8,9 +8,7 @@ import sys
 
 class BConvLayer(object):
     '''BL recurrent convolutional layer
-
     Note that this is NOT A KERAS LAYER but is an object containing Keras layers
-
     Args:
         filters: Int, number of output filters in convolutions
         kernel_size: Int or tuple/list of 2 integers, specifying the height and
@@ -24,19 +22,20 @@ class BConvLayer(object):
         # adaptation values
         self.alpha = tf.constant(alpha)
         self.beta = tf.constant(beta)
+        self.layer_name = layer_name
 
         # initialise convolutional layers
         self.b_conv = tf.keras.layers.Conv2D(
             filters, kernel_size, padding='same', use_bias=False,
             kernel_initializer='glorot_uniform',
             kernel_regularizer=tf.keras.regularizers.l2(1e-6),
-            name='{}_BConv'.format(layer_name))
+            name='{}_BConv'.format(self.layer_name))
 
         # holds the most recent bottom-up conv
         # useful when the bottom-up input does not change, e.g. input image
         self.previous_b_conv = None
 
-    def __call__(self, b_input=None, l_input=None, s_input=None):
+    def __call__(self, t, n, b_input=None, l_input=None, s_input=None):
 
         if not b_input is None: # run bottom-up conv and save result
             b_input_current = self.b_conv(b_input)
@@ -49,8 +48,16 @@ class BConvLayer(object):
         # comput current suppression state
         if not s_input is None:
 
+            # layer for summing convolutions
+            sum_convs = tf.keras.layers.Lambda(
+                tf.math.add_n, name='{}_S_Time_{}'.format(n, t))
+
             # compute activation with intrinsic suppression
-            s_current = tf.math.add(tf.math.multiply(self.alpha, s_input), tf.math.multiply(tf.math.subtract(1, self.alpha), l_input))
+            s_previous = tf.math.multiply(self.alpha, s_input)
+            r_previous = tf.math.multiply(tf.math.subtract(1, self.alpha), l_input)
+
+            s_current = sum_convs([s_previous, r_previous])
+            # s_current = tf.math.add(s_previous, r_previous, name='{}_S_Time_{}'.format(n, t))
             r_current = tf.math.subtract(b_input_current, tf.math.multiply(self.beta, s_current))
 
             # return element-wise sum of convolutions
@@ -61,7 +68,6 @@ class BConvLayer(object):
 
 def b_net_adapt(input_tensor, classes, model_arch, alpha=0.96, beta=0.7, n_timesteps=8, cumulative_readout=False):
         """ Returns a feedforward B-model with intrinsic adaptation
-
         """
 
         data_format = tf.keras.backend.image_data_format()
@@ -147,8 +153,9 @@ def b_net_adapt(input_tensor, classes, model_arch, alpha=0.96, beta=0.7, n_times
                 if n == 0:
 
                     # B conv on the image does not need to be recomputed
-                    if t == 0:
-                        b_input = input_tensor
+                    if n == 0:
+                        b_input = input_tensor[:, t, :, :, :]
+                        print(input_tensor.shape)
                     else:
                         b_input =  None
 
@@ -172,16 +179,15 @@ def b_net_adapt(input_tensor, classes, model_arch, alpha=0.96, beta=0.7, n_times
                                 name='MaxPool_Layer_{}_Time_{}'.format(n, t)
                                 )(activations[t][n-1])
 
-
                 # get the lateral input and suppression state
                 if t == 0:
                     l_input = None
                     s_input = None
-                    x_tn = layer(b_input, l_input, s_input)
+                    x_tn = layer(t, n, b_input, l_input, s_input)
                 else:
                     l_input = activations[t-1][n]
                     s_input = s[t-1][n]
-                    x_tn, s_current = layer(b_input, l_input, s_input)
+                    x_tn, s_current = layer(t, n, b_input, l_input, s_input)
 
                 # batch normalization
                 x_tn = tf.keras.layers.BatchNormalization(
