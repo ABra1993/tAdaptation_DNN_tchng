@@ -1,6 +1,8 @@
 # required pacakges
 import numpy as np
 import pandas as pd
+import PIL
+from PIL import Image
 import math
 import tensorflow as tf
 import matplotlib.pyplot as plt
@@ -12,6 +14,58 @@ import h5py
 from temporal_models.spoerer_2020.models.preprocess import preprocess_image
 from temporal_models.spoerer_2020.models.b_net import *
 from temporal_models.spoerer_2020.models.bl_net import bl_net
+'''
+def load_input_images(input_layer, input_shape, timepts, img_idx):
+    """ Loads RGB vlaues of the input image.
+
+    params
+    -----------------------
+    input_layer : keras layer
+        input layer to the network
+    input_shape : list
+        contains shape of each dimension for the input images
+    timepts : int
+        number of timepoints
+    img_idx : int
+        index of image to obtain filename (img_idx = 1, filename: '1.png')
+
+    returns
+    -----------------------
+    input_img : tensor
+        containing preprocessed RGB values for each input image
+    raw_img : tensor
+        containing processed RGB values for each input image
+
+    """
+    # input over time
+    input_img = np.zeros((len(img_idx), input_shape[1], input_shape[2], input_shape[3]))
+
+    # import images
+    raw_img = []
+
+    for i in range(len(img_idx)):
+
+        # Open image and retrieve icc profile
+        raw_img_temp = Image.open('visualizations/stimuli/' + str(img_idx[i]))
+        icc_profile = raw_img_temp.info.get('icc_profile')
+
+        # Resize image
+        raw_img_temp = raw_img_temp.resize((128, 128), Image.ANTIALIAS)
+
+        # Convert image to array of RGB values
+        raw_array_temp8 = np.array(raw_img_temp, dtype='uint8')
+        input_img_temp = cv2.cvtColor(raw_array_temp8, cv2.COLOR_BGR2RGB)
+        raw_img.append(input_img_temp)
+
+        # scale pixel values
+        img_preprocessed = preprocess_image(input_img_temp)
+        input_img[i, :, :, :] = input_img_temp
+
+        plt.imshow(input_img_temp)
+        plt.show()
+
+    return input_img, raw_img
+'''
 
 def load_input_images(input_layer, input_shape, timepts, img_idx):
     """ Loads RGB vlaues of the input image.
@@ -65,7 +119,6 @@ def load_input_images(input_layer, input_shape, timepts, img_idx):
         img_preprocessed = preprocess_image(img_resize)
         input_img[i, :, :, :] = img_preprocessed
 
-
     return input_img, raw_img
 
 
@@ -103,6 +156,8 @@ def load_input_timepts(input_img, input_shape, timepts, stim_duration, start):
         input = np.zeros((timepts, input_shape[1], input_shape[2], input_shape[3]))
     else:
         input = np.zeros((timepts, input_shape[3], input_shape[1], input_shape[2]))
+
+    input[:, :, :, :] = 0.5
 
     for i in range(img_n):
 
@@ -253,13 +308,13 @@ def manually_load_weights(prepdic, model):
             for n in range(0, 7):
                 if 'BatchNorm_Layer_'+str(n) in mname and 'BatchNorm_Layer_'+str(n) in wname:
                     model.layers[i].set_weights([dic[wname][1], dic[wname][0], dic[wname][2], dic[wname][3]])
-                    print('setting batch', mname, wname)
+                    #print('setting batch', mname, wname)
 
                 if 'ACL_'+str(n) in mname and 'Conv_Layer_'+str(n) in wname:
                     model.layers[i].set_weights(dic[wname])
-                    print('setting conv', mname, wname)
+                    #print('setting conv', mname, wname)
 
             if 'ReadoutDense' in mname and 'ReadoutDense' in wname:
-                print('setting ', mname, wname)
+                #print('setting ', mname, wname)
                 model.layers[i].set_weights([dic[wname][1], dic[wname][0]])
     return dic
