@@ -44,19 +44,19 @@ def main():
     train_or_test = 'test'                                                      # options: 'train' or 'test'
 
     # list of classes of images used (choose from subfiles in test or train dir)
-    imgclass = [f for f in os.listdir('visualizations/stimuli/ecoset_subset_test_25')][0:122]
+    imgclass = [f for f in os.listdir('visualizations/stimuli/ecoset_subset_test_25')]
 
     # Number of images to take from each class
-    imgnum = 2
+    imgnum = 25
 
     # define model and dataset
     model_arch = 'b'                                                            # network architecture (options: b, b_k, b_f, b_d)
     dataset = 'ecoset'                                                          # dataset the network is trained on
 
     # set timeseries
-    n_timesteps = 4                                                            # number of timesteps
-    stim_duration = 1                                                           # stimulus duration
-    start = [1, 3]                                                              # starting points of stimuli
+    n_timesteps = 8                                                            # number of timesteps
+    stim_duration = 2                                                           # stimulus duration
+    start = [1, 4]                                                              # starting points of stimuli
 
     # adaptation parameters
     alpha = 0.96
@@ -144,12 +144,12 @@ def main():
                             for idx3, c in enumerate(b):
                                 suppressions_perunit[math.floor(idx/len(imgclass)), idx%imgnum, l, t, idx1*2*2048 + idx2*2048 + idx3] = c
 
-    print(suppressions_perunit.shape, activations_perunit.shape)
+    #print(suppressions_perunit.shape, activations_perunit.shape)
 
     # save activations and suppressions per unit
-    with open("selectivity/rq3/activationsl7.json", "w") as f:
+    with open("activationsl7.json", "w") as f:
         json.dump(activations_perunit.tolist(), f)
-    with open("selectivity/rq3/suppressionsl7.json", "w") as f:
+    with open("suppressionsl7.json", "w") as f:
         json.dump(suppressions_perunit.tolist(), f)
 
 if __name__ == '__main__':
