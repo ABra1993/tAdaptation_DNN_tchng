@@ -155,7 +155,6 @@ def b_net_adapt(input_tensor, classes, model_arch, alpha=0.96, beta=0.7, n_times
                     # B conv on the image does not need to be recomputed
                     if n == 0:
                         b_input = input_tensor[:, t, :, :, :]
-                        print(input_tensor.shape)
                     else:
                         b_input =  None
 
@@ -207,7 +206,7 @@ def b_net_adapt(input_tensor, classes, model_arch, alpha=0.96, beta=0.7, n_times
             # add the readout layers
             x = tf.keras.layers.GlobalAvgPool2D(
                 name='GlobalAvgPool_Time_{}'.format(t)
-                )(activations[t][n-1])
+                )(activations[t][n])
             presoftmax[t] = readout_dense(x)
 
             # select cumulative or instant readout
