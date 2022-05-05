@@ -7,7 +7,7 @@ import tensorflow as tf
 import time
 import h5py
 from difflib import SequenceMatcher
-
+from pandas import Series
 
 # required scripts
 from temporal_models.spoerer_2020.models.preprocess import preprocess_image
@@ -91,16 +91,16 @@ def main():
     # input_shape (HARD-coded)
     input_shape = [128, 128, 3]
     input_layer = tf.keras.layers.Input((input_shape[0], input_shape[1], input_shape[2]))
-    input_layer2 = tf.keras.layers.Input((input_shape[0], input_shape[1], input_shape[2]))
 
     img1_idx = 'testturtle.png'
     img2_idx = 'testturtle.png'
     input_img, raw_img = load_input_images(input_layer, input_shape, n_timesteps, [img1_idx, img2_idx])
 
     #load input over time
-    #input_tensor = load_input_timepts(input_img, input_shape, n_timesteps, stim_duration, start)
+    input_tensor = load_input_timepts(input_img, input_shape, n_timesteps, stim_duration, start)
 
     # Create model for first timestep
+
     model = b_net_adapt(input_tensor =input_layer, classes = classes, model_arch = model_arch, alpha=alpha, beta=beta, timestep=0, cumulative_readout=False)
     print(model.summary())
 
@@ -113,6 +113,43 @@ def main():
     # Create model for second timestep
     model2 = b_net_adapt(input_tensor =input_layer, classes = classes, model_arch = model_arch, alpha=alpha, beta=beta, timestep=1, cumulative_readout=False)
     print(model2.summary())
+    """
+    model3 = bold(input_tensor =input_layer, classes = classes, model_arch = model_arch, alpha=alpha, beta=beta, n_timesteps=8, cumulative_readout=False)
+    for lay in model3.layers:
+        print(lay.name, lay.output_shape)
+    names = []
 
+    prepdic = read_hdf5("weights/b_ecoset.h5")
+    dic = {}
+    for wname in prepdic:
+        if 'Readout' in wname and wname[0:27] not in dic.keys():
+            dic[wname[0:27]] = [prepdic[wname]]
+        elif 'Readout' in wname and wname[0:27] in dic.keys():
+            dic[wname[0:27]].append(prepdic[wname])
+        elif len(wname) < 37:
+            dic[wname] = prepdic[wname]
+        elif wname[0:36] not in dic.keys():
+            dic[wname[0:36]] = [prepdic[wname]]
+        else: dic[wname[0:36]].append(prepdic[wname])
+
+    for lay in dic:
+        print(lay, len(dic[lay]), '\n')
+
+    for t in dic['/ReadoutDense/ReadoutDense/']:
+        print(len(t))
+
+    for wname in dic:
+        for i, lay in enumerate(model3.layers):
+            mname = lay.name
+            for n in range(0, 7):
+                if 'BatchNorm_Layer_'+str(n) in mname and 'BatchNorm_Layer_'+str(n) in wname:
+                    model3.layers[i].set_weights(dic[wname])
+                    print('set batchnorm ', n, '\n')
+                elif 'Conv_Layer_'+str(n) in mname and 'Conv_Layer_'+str(n) in wname:
+                    model3.layers[i].set_weights(dic[wname])
+                    print('set conv ', n, '\n')
+            if 'ReadoutDense' in mname and 'ReadoutDense' in wname:
+                model3.layers[i].set_weights([dic[wname][1], dic[wname][0]])
+    """
 if __name__ == '__main__':
     main()

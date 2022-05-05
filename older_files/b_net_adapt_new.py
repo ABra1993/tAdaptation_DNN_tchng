@@ -40,7 +40,7 @@ class BConvLayer(object):
             filters, kernel_size, padding='same', use_bias=False,
             kernel_initializer='glorot_uniform',
             kernel_regularizer=tf.keras.regularizers.l2(1e-6),
-            name='{}_BConv'.format(layer_name))
+            name='{}_BConv_{}'.format(layer_name, timestep))
 
         # holds the most recent bottom-up conv
         # useful when the bottom-up input does not change, e.g. input image
@@ -77,8 +77,8 @@ class BConvLayer(object):
         if not s_input is None:
 
             # compute activation with intrinsic suppression
-            s_current = tf.math.add(tf.math.multiply(self.alpha, s_input), tf.math.multiply(tf.math.subtract(1, self.alpha), l_input))
-            r_current = tf.math.subtract(b_inputs[current_idx+1], tf.math.multiply(self.beta, s_current))
+            s_current = tf.math.add(tf.math.multiply(self.alpha, s_input, name='multiply1_{}'.format(timestep)), tf.math.multiply(tf.math.subtract(1, self.alpha, name='subtract1_{}'.format(timestep)), l_input, name='multiply2_{}'.format(timestep)), name='add_{}'.format(timestep))
+            r_current = tf.math.subtract(b_inputs[current_idx+1], tf.math.multiply(self.beta, s_current, name='multiply3_{}'.format(timestep)), name='subtract2_{}'.format(timestep))
 
             # return element-wise sum of convolutions
             return r_current, s_current
@@ -91,7 +91,6 @@ def b_net_adapt(input_tensor, classes, model_arch, timestep, alpha=0.96, beta=0.
         """ Returns a feedforward B-model with intrinsic adaptation
 
         """
-
         global activations
         global suppressions
         global b_inputs
@@ -103,13 +102,13 @@ def b_net_adapt(input_tensor, classes, model_arch, timestep, alpha=0.96, beta=0.
         # initialise trainable layers (ACLs and linear readout)
         if model_arch == 'b':
             layers = [
-                BConvLayer(timestep, 96, 7, 'ACL_0', alpha, beta),
-                BConvLayer(timestep, 128, 5, 'ACL_1', alpha, beta),
-                BConvLayer(timestep, 192, 3, 'ACL_2', alpha, beta),
-                BConvLayer(timestep, 256, 3, 'ACL_3', alpha, beta),
-                BConvLayer(timestep, 512, 3, 'ACL_4', alpha, beta),
-                BConvLayer(timestep, 1024, 3, 'ACL_5', alpha, beta),
-                BConvLayer(timestep, 2048, 1, 'ACL_6', alpha, beta),
+                BConvLayer(timestep, 96, 7, 'ACL_0'+str(timestep), alpha, beta),
+                BConvLayer(timestep, 128, 5, 'ACL_1'+str(timestep), alpha, beta),
+                BConvLayer(timestep, 192, 3, 'ACL_2'+str(timestep), alpha, beta),
+                BConvLayer(timestep, 256, 3, 'ACL_3'+str(timestep), alpha, beta),
+                BConvLayer(timestep, 512, 3, 'ACL_4'+str(timestep), alpha, beta),
+                BConvLayer(timestep, 1024, 3, 'ACL_5'+str(timestep), alpha, beta),
+                BConvLayer(timestep, 2048, 1, 'ACL_6'+str(timestep), alpha, beta),
             ]
         elif model_arch == 'b_k':
             layers = [
@@ -159,7 +158,7 @@ def b_net_adapt(input_tensor, classes, model_arch, timestep, alpha=0.96, beta=0.
         readout_dense = tf.keras.layers.Dense(
                 classes, kernel_initializer='glorot_uniform',
                 kernel_regularizer=tf.keras.regularizers.l2(1e-6),
-                name='ReadoutDense')
+                name='ReadoutDense_Time{}'.format(timestep))
 
         # initialise list for outputs
         n_layers = len(layers)
@@ -186,7 +185,7 @@ def b_net_adapt(input_tensor, classes, model_arch, timestep, alpha=0.96, beta=0.
                     # pool b_input for all layers apart from input
                     b_inputs[current_idx] = tf.keras.layers.MaxPool2D(
                         pool_size=(2, 2),
-                        name='MaxPool_Layer_{}'.format(n)
+                        name='MaxPool_Layer_{}_{}'.format(n, timestep)
                         )(activations[timestep][n-1])
 
                 else:
@@ -196,7 +195,7 @@ def b_net_adapt(input_tensor, classes, model_arch, timestep, alpha=0.96, beta=0.
                         # pool b_input for all layers apart from input
                         b_inputs[current_idx] = tf.keras.layers.MaxPool2D(
                             pool_size=(2, 2),
-                            name='MaxPool_Layer_{}'.format(n)
+                            name='MaxPool_Layer_{}_Time_{}'.format(n, timestep)
                             )(activations[timestep][n-1])
 
 
@@ -213,11 +212,11 @@ def b_net_adapt(input_tensor, classes, model_arch, timestep, alpha=0.96, beta=0.
             # batch normalization
             x_tn = tf.keras.layers.BatchNormalization(
                 norm_axis,
-                name='BatchNorm_Layer_{}'.format(n))(x_tn)
+                name='BatchNorm_Layer_{}_Time_{}'.format(n, timestep))(x_tn)
 
             # ReLU
             activations[timestep][n] = tf.keras.layers.Activation(
-                'relu', name='ReLU_Layer_{}'.format(n))(x_tn)
+                'relu', name='ReLU_Layer_{}_Time_{}'.format(n, timestep))(x_tn)
 
             if timestep == 0:
                 suppressions[timestep][n] = tf.keras.layers.Activation(
@@ -227,26 +226,32 @@ def b_net_adapt(input_tensor, classes, model_arch, timestep, alpha=0.96, beta=0.
 
         # add the readout layers
         x = tf.keras.layers.GlobalAvgPool2D(
-            name='GlobalAvgPool'
-            )(activations[timestep][n-1])
+            name='GlobalAvgPool_Time_{}'.format(timestep)
+            )(activations[timestep][n])
         presoftmax = readout_dense(x)
 
         # select cumulative or instant readout
         if cumulative_readout and timestep > 0:
             x = tf.keras.layers.Add(
-                name='CumulativeReadout'
+                name='CumulativeReadout_Time_{}'.format(timestep)
                 )(presoftmax[:timestep+1])
 
         else:
             x = presoftmax
         outputs[timestep] = tf.keras.layers.Activation(
-            'softmax', name='Sotfmax')(x)
+            'softmax', name='Sotfmax_Time_{}'.format(timestep))(x)
 
 
         # create Keras model and return
-        model = tf.keras.Model(
-            inputs=input_tensor,
-            outputs=outputs[timestep],
-            name='b_net_adapt_'+str(timestep))
-
-        return model
+        if timestep == 0:
+            model1 = tf.keras.Model(
+                inputs=input_tensor,
+                outputs=outputs[timestep],
+                name='b_net_adapt_'+str(timestep))
+            return model1
+        else:
+            model2 = tf.keras.Model(
+                inputs=input_tensor,
+                outputs=outputs[timestep],
+                name='b_net_adapt_'+str(timestep))
+            return model2
