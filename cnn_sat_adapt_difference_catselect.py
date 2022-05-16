@@ -130,7 +130,7 @@ def main():
                 for idx1, a in enumerate(activations_temp[0][0]):
                     for idx2, b in enumerate(a):
                         for idx3, c in enumerate(b):
-                            activations_perunit[math.floor(idx/len(imgclass)), idx%imgnum, l, t, idx1*2*2048 + idx2*2048 + idx3] = c
+                            activations_perunit[math.floor(idx/len(imgnum)), idx%imgnum, l, t, idx1*2*2048 + idx2*2048 + idx3] = c
 
                 # extract average suppression and suppression per unit
                 if t > 0:
@@ -142,9 +142,7 @@ def main():
                     for idx1, a in enumerate(suppressions_temp[0][0]):
                         for idx2, b in enumerate(a):
                             for idx3, c in enumerate(b):
-                                suppressions_perunit[math.floor(idx/len(imgclass)), idx%imgnum, l, t, idx1*2*2048 + idx2*2048 + idx3] = c
-
-    #print(suppressions_perunit.shape, activations_perunit.shape)
+                                suppressions_perunit[math.floor(idx/len(imgnum)), idx%imgnum, l, t, idx1*2*2048 + idx2*2048 + idx3] = c
 
     # save activations and suppressions per unit
     with open("activationsl7.json", "w") as f:
