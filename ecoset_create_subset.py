@@ -14,7 +14,7 @@ Outputs: -
 
 Description: creates a subset of the ecoset, where each class contains a USER-DEFINED
 
-    number of images
+    number of images (number of images see documentation)
 
 """
 
