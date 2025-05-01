@@ -25,8 +25,8 @@ def main():
     set = 'test'
 
     # root (location where to create subset)
-    root = '/home/amber/Documents/ecoset/'
-
+    root = '' # ADD directory
+    
     try: # remove old folder containing the subset
         shutil.rmtree(root + 'ecoset_subset_' + set + '_' + str(N) + '/')
     except:
